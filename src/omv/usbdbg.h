@@ -57,4 +57,6 @@ void usbdbg_set_script_running(bool running);
 void usbdbg_data_in(void *buffer, int length);
 void usbdbg_data_out(void *buffer, int length);
 void usbdbg_control(void *buffer, uint8_t brequest, uint32_t wlength);
+void usbddbg_open(void);
+void usbddbg_close(void);
 #endif /* __USBDBG_H__ */

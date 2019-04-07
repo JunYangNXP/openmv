@@ -9,7 +9,11 @@
 #ifndef __FF_WRAPPER_H__
 #define __FF_WRAPPER_H__
 #include <stdint.h>
+#if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include <ff.h>
+#else
+#include "lib/oofatfs/ff.h"
+#endif
 extern const char *ffs_strerror(FRESULT res);
 
 //OOFATFS wrappers

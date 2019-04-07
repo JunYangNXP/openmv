@@ -18,7 +18,9 @@
 #define malloc(size) ({ void *_r = umm_malloc(size); if(!_r) fb_alloc_fail(); _r; })
 #define realloc(ptr, size) ({ void *_r = umm_realloc((ptr), (size)); if(!_r) fb_alloc_fail(); _r; })
 #define calloc(num, item_size) ({ void *_r = umm_calloc((num), (item_size)); if(!_r) fb_alloc_fail(); _r; })
+#ifndef assert
 #define assert(expression)
+#endif
 #define zprintf(...)
 #define dbprintf(...) while(0)
 #define zassert(condition, retval, format, ...) do { if(!(condition)) return(retval); } while(0)

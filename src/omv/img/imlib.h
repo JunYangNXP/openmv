@@ -14,7 +14,11 @@
 #include <float.h>
 #include <math.h>
 #include <arm_math.h>
+#if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include <ff.h>
+#else
+#include "lib/oofatfs/ff.h"
+#endif
 #include "fb_alloc.h"
 #include "umm_malloc.h"
 #include "xalloc.h"

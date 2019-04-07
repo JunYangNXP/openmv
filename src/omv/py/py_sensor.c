@@ -9,7 +9,7 @@
 #include <stdarg.h>
 #include "mp.h"
 #include "pin.h"
-#include "sensor.h"
+#include "../sensor.h"
 #include "imlib.h"
 #include "xalloc.h"
 #include "py_assert.h"

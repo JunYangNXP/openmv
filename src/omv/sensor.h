@@ -136,7 +136,6 @@ typedef struct _sensor {
 
     uint32_t vsync_pin;         // VSYNC GPIO output pin.
     GPIO_TypeDef *vsync_gpio;   // VSYNC GPIO output port.
-
     polarity_t pwdn_pol;        // PWDN polarity (TODO move to hw_flags)
     polarity_t reset_pol;       // Reset polarity (TODO move to hw_flags)
 

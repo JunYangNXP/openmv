@@ -8,7 +8,11 @@
  */
 #include <arm_math.h>
 #include <stdlib.h>
+#if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include <ff.h>
+#else
+#include "lib/oofatfs/ff.h"
+#endif
 #include "ff_wrapper.h"
 #include "xalloc.h"
 #include "imlib.h"

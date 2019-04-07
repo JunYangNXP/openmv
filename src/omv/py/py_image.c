@@ -11,7 +11,7 @@
 #include <mp.h>
 #include "imlib.h"
 #include "array.h"
-#include "sensor.h"
+#include "../sensor.h"
 #include "ff_wrapper.h"
 #include "xalloc.h"
 #include "fb_alloc.h"
