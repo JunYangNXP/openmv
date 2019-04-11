@@ -25,6 +25,7 @@ OMV_MAIN_BASE_SRC = \
         usbdbg_zephyr.c     \
         mt9m114.c           \
         sensor_zephyr.c     \
+	cambus_zephyr.c     \
         mutex.c             \
         trace.c             \
 

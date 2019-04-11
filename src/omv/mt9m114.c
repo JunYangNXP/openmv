@@ -419,6 +419,7 @@ int mt9m114_init(sensor_t *sensor)
 	SENSOR_HW_FLAGS_SET(sensor, SENSOR_HW_FLAGS_PIXCK, 0);
 	SENSOR_HW_FLAGS_SET(sensor, SENSOR_HW_FLAGS_FSYNC, 0);
 	SENSOR_HW_FLAGS_SET(sensor, SENSOR_HW_FLAGS_JPEGE, 0);
+	sensor->pixformat = PIXFORMAT_RGB565;
 
 	return 0;
 }

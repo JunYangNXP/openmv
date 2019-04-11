@@ -9,8 +9,13 @@
 #ifndef __CAMBUS_H__
 #define __CAMBUS_H__
 #include <stdint.h>
-int cambus_init();
-int cambus_scan();
+#include "i2c.h"
+#define MT9M114_I2C_ADDR 0x48
+#define MT9M114_CHIP_ID 0x24
+#define MT9M114_CHIP_ID_REG 0
+
+int cambus_init(void);
+int cambus_scan(void);
 int cambus_readb(uint8_t slv_addr, uint8_t reg_addr,  uint8_t *reg_data);
 int cambus_writeb(uint8_t slv_addr, uint8_t reg_addr, uint8_t reg_data);
 int cambus_readw(uint8_t slv_addr, uint8_t reg_addr,  uint16_t *reg_data);

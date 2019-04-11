@@ -140,7 +140,9 @@ FRESULT exec_boot_script(const char *path, bool selftest, bool interruptible)
 #include "genhdr/mpversion.h"
 
 extern int pyexec_str(vstr_t *str);
-
+//extern void img_sensor_test(void);
+extern void print_arm_static_regions_num(void);
+extern void print_flex_ram_init_done(void);
 int omv_main(void)
 {
 	int mp_info_log = 0;
@@ -152,6 +154,8 @@ int omv_main(void)
 	usbdbg_init();
 	sdcard_init();
 	sensor_init();
+	print_arm_static_regions_num();
+	print_flex_ram_init_done();
 
 	if (sdcard_is_present()) {
 		FRESULT res;
@@ -191,6 +195,9 @@ pyexec_from_host:
 	usbdbg_set_irq_enabled(true);
 	printk("MicroPython " MICROPY_GIT_TAG " on " MICROPY_BUILD_DATE "; " MICROPY_HW_BOARD_NAME " with " MICROPY_HW_MCU_NAME "\r\n");
 	printk("Waiting for PY script from host IDE\r\n");
+{
+	//img_sensor_test();
+}
 
 	while (1) {
 		if (usbdbg_script_ready())

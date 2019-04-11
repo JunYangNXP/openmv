@@ -21,7 +21,25 @@
 #include "framebuffer.h"
 #include "omv_boardconfig.h"
 
-sensor_t sensor;
+sensor_t g_sensor;
+
+extern int mt9m114_init(sensor_t *sensor);
+
+struct img_sensor_map {
+	uint8_t  chip_id;
+	int  (*sensor_init)(sensor_t *sensor);
+};
+
+struct img_sensor_map g_img_sensor_map[] = {
+	{
+		MT9M114_CHIP_ID,
+		mt9m114_init,
+	}
+};
+
+extern void img_sensor_power(int on);
+extern uint8_t cambus_get_chip(uint8_t slv_id);
+extern void camera_data_bus_init(void);
 
 const int resolution[][2] = {
 	{0,    0   },
@@ -56,9 +74,14 @@ const int resolution[][2] = {
 	{1600, 1200},    /* UXGA      */
 };
 
-
 int sensor_init(void)
 {
+#if 0
+	img_sensor_power(1);
+	cambus_init();
+	g_sensor.slv_addr = cambus_scan();
+	printk("g_sensor.slv_addr:%d\r\n", g_sensor.slv_addr);
+#endif
 	return 0;
 }
 
@@ -69,7 +92,18 @@ void sensor_init0(void)
 
 int sensor_reset(void)
 {
-	return 0;
+	int i;
+
+	g_sensor.chip_id = cambus_get_chip(g_sensor.slv_addr);
+	for (i = 0; i < sizeof(g_img_sensor_map) / sizeof(struct img_sensor_map); i++) {
+		if (g_sensor.chip_id == g_img_sensor_map[i].chip_id) {
+			g_img_sensor_map[i].sensor_init(&g_sensor);
+			camera_data_bus_init();
+			g_sensor.reset(&g_sensor);
+			return 0;
+		}
+	}
+	return -1;
 }
 
 int sensor_get_id(void)
@@ -202,7 +236,12 @@ int sensor_set_vsync_output(GPIO_TypeDef *gpio, uint32_t pin)
 	return 0;
 }
 
+extern int camera_snapshot(void *pixel_data);
 int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_cb)
 {
-	return 0;
+	int ret;
+
+	printk("sensor_snapshot image:%p, pixels:%p\r\n", image, image->pixels);
+	ret = camera_snapshot(image->pixels);
+	return ret;
 }
