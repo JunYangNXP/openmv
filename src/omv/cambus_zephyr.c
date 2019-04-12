@@ -103,22 +103,99 @@ int cambus_writew(uint8_t slv_addr, uint8_t reg_addr, uint16_t reg_data)
 	return ret;
 }
 
+int cambus_readb2(uint8_t slv_addr, uint16_t reg_addr, uint8_t *reg_data)
+{
+	int ret;
+	u8_t addr_buffer[2];
+
+	assert(g_bus_dev);
+
+	addr_buffer[1] = reg_addr & 0xFF;
+	addr_buffer[0] = reg_addr >> 8;
+	ret = i2c_write_read(g_bus_dev, slv_addr, addr_buffer, 2, reg_data, 1);
+
+	return ret;
+}
+
+int cambus_writeb2(uint8_t slv_addr, uint16_t reg_addr, uint8_t reg_data)
+{
+	int ret;
+	uint8_t data[3];
+
+	assert(g_bus_dev);
+	data[1] = reg_addr & 0xFF;
+	data[0] = reg_addr >> 8;
+	data[2] = reg_data;
+	ret = i2c_write(g_bus_dev, (const u8_t *)data, 3, slv_addr);
+
+	return ret;
+}
+
+
 int cambus_readw2(uint8_t slv_addr, uint16_t reg_addr, uint16_t *reg_data)
 {
 	int ret;
+	u8_t addr_buffer[2];
 
 	assert(g_bus_dev);
-	ret = i2c_burst_read16(g_bus_dev, slv_addr, reg_addr, (u8_t *)reg_data, 2);
+
+	addr_buffer[1] = reg_addr & 0xFF;
+	addr_buffer[0] = reg_addr >> 8;
+
+	ret = i2c_write_read(g_bus_dev, slv_addr, addr_buffer, 2, (u8_t *)reg_data, 2);
+	*reg_data = ((*reg_data >> 8U) & 0xFF) | ((*reg_data & 0xFFU) << 8U);
 
 	return ret;
 }
 
 int cambus_writew2(uint8_t slv_addr, uint16_t reg_addr, uint16_t reg_data)
 {
-	int ret;
+	int ret, data_width = 2;
+	uint8_t data[4];
 
 	assert(g_bus_dev);
-	ret = i2c_burst_write16(g_bus_dev, slv_addr, reg_addr, (const u8_t *)&reg_data, 2);
+	data[1] = reg_addr & 0xFF;
+	data[0] = reg_addr >> 8;
+	while (data_width--) {
+		data[data_width + 2] = (uint8_t)reg_data;
+		reg_data >>= 8;
+	}
+	ret = i2c_write(g_bus_dev, (const u8_t *)data, 4, slv_addr);
     
+	return ret;
+}
+
+int cambus_readl2(uint8_t slv_addr, uint16_t reg_addr, uint32_t *reg_data)
+{
+	int ret, data_width = 4, i = 0;
+	uint8_t data[4];
+	u8_t addr_buffer[2];
+
+	assert(g_bus_dev);
+	addr_buffer[1] = reg_addr & 0xFF;
+	addr_buffer[0] = reg_addr >> 8;
+	ret = i2c_write_read(g_bus_dev, slv_addr, addr_buffer, 2, (u8_t *)data, 4);
+	if (ret)
+		return ret;
+	while (data_width--)
+		((uint8_t *)reg_data)[i++] = data[data_width];
+
+	return ret;
+}
+
+int cambus_writel2(uint8_t slv_addr, uint16_t reg_addr, uint32_t reg_data)
+{
+	int ret, data_width = 4;
+	uint8_t data[6];
+
+	assert(g_bus_dev);
+	data[1] = reg_addr & 0xFF;
+	data[0] = reg_addr >> 8;
+	while (data_width--) {
+		data[data_width + 2] = (uint8_t)reg_data;
+		reg_data >>= 8;
+	}
+	ret = i2c_write(g_bus_dev, (const u8_t *)data, 6, slv_addr);
+
 	return ret;
 }

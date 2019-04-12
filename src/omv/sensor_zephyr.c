@@ -21,7 +21,7 @@
 #include "framebuffer.h"
 #include "omv_boardconfig.h"
 
-sensor_t g_sensor;
+sensor_t sensor;
 
 extern int mt9m114_init(sensor_t *sensor);
 
@@ -76,12 +76,11 @@ const int resolution[][2] = {
 
 int sensor_init(void)
 {
-#if 0
+	printk("sensor_init called\r\n");
 	img_sensor_power(1);
 	cambus_init();
-	g_sensor.slv_addr = cambus_scan();
-	printk("g_sensor.slv_addr:%d\r\n", g_sensor.slv_addr);
-#endif
+	sensor.slv_addr = cambus_scan();
+	printk("g_sensor.slv_addr:%d\r\n", sensor.slv_addr);
 	return 0;
 }
 
@@ -94,12 +93,19 @@ int sensor_reset(void)
 {
 	int i;
 
-	g_sensor.chip_id = cambus_get_chip(g_sensor.slv_addr);
+	printk("sensor_reset called\r\n");
+	sensor.chip_id = cambus_get_chip(sensor.slv_addr);
+	printk("sensor_reset sensor.chip_id:0x%02x\r\n", sensor.chip_id);
 	for (i = 0; i < sizeof(g_img_sensor_map) / sizeof(struct img_sensor_map); i++) {
-		if (g_sensor.chip_id == g_img_sensor_map[i].chip_id) {
-			g_img_sensor_map[i].sensor_init(&g_sensor);
+		printk("sensor_reset sensor.chip_id:0x%02x, map[%d].id:0x%02x\r\n", sensor.chip_id,
+			i, g_img_sensor_map[i].chip_id);
+		if (sensor.chip_id == g_img_sensor_map[i].chip_id) {
+			printk("sensor_init callback:%p, mt9m114_init:%p\r\n",
+				g_img_sensor_map[i].sensor_init, mt9m114_init);
+			g_img_sensor_map[i].sensor_init(&sensor);
 			camera_data_bus_init();
-			g_sensor.reset(&g_sensor);
+			printk("sensor.reset callback:%p\r\n", sensor.reset);
+			sensor.reset(&sensor);
 			return 0;
 		}
 	}
@@ -244,4 +250,29 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
 	printk("sensor_snapshot image:%p, pixels:%p\r\n", image, image->pixels);
 	ret = camera_snapshot(image->pixels);
 	return ret;
+}
+
+int sensor_ioctl(int request, ... /* arg */)
+{
+	int ret = -1;
+
+	if (sensor.ioctl != NULL) {
+		va_list ap;
+		va_start(ap, request);
+		/* call the sensor specific function */
+		ret = sensor.ioctl(&sensor, request, ap);
+		va_end(ap);
+	}
+	return ret;
+}
+
+int sensor_set_color_palette(const uint16_t *color_palette)
+{
+	sensor.color_palette = color_palette;
+	return 0;
+}
+
+const uint16_t *sensor_get_color_palette()
+{
+	return sensor.color_palette;
 }

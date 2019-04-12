@@ -3,23 +3,23 @@
  * Copyright (c) 2013/2014 Ibrahim Abdelkader <i.abdalkader@gmail.com>
  * This work is licensed under the MIT license, see the file LICENSE for details.
  *
- * MT9V034 driver.
+ * MT9M114 driver.
  *
  */
-
 #include STM32_HAL_H
 #include "cambus.h"
-#include "mt9v034.h"
+#include "mt9m114.h"
 #include "systick.h"
 #include "framebuffer.h"
 #include "sensor.h"
 #include "omv_boardconfig.h"
-#if defined(OMV_ENABLE_MT9M114)
+#include <stdint.h>
+
 typedef struct _mt9m114_reg
 {
-    uint16_t reg;
-    uint8_t size;
-    uint32_t value;
+	uint16_t reg;
+	uint8_t size;
+	uint32_t value;
 } mt9m114_reg_t;
 
 static const mt9m114_reg_t mt9m114_480_272[] = {
@@ -87,11 +87,11 @@ status_t mt9m114_modify_reg(uint8_t i2c_addr,
 		return kStatus_InvalidArgument;
 
 	if (data_width == 1)
-		status = cambus_readb(i2c_addr, reg, (uint8_t *)&regval);
+		status = cambus_readb2(i2c_addr, reg, (uint8_t *)&regval);
 	else if (data_width == 2)
-		status = cambus_readw(i2c_addr, reg, (uint16_t *)&regval);
+		status = cambus_readw2(i2c_addr, reg, (uint16_t *)&regval);
 	else
-		status = cambus_readl(i2c_addr, reg, (uint32_t *)&regval);
+		status = cambus_readl2(i2c_addr, reg, (uint32_t *)&regval);
 
 	if (kStatus_Success != status)
 		return status;
@@ -99,11 +99,11 @@ status_t mt9m114_modify_reg(uint8_t i2c_addr,
 	regval = (regval & ~(clrMask)) | (value & clrMask);
 
 	if (data_width == 1)
-		return cambus_writeb(i2c_addr, reg, (uint8_t)regval);
+		return cambus_writeb2(i2c_addr, reg, (uint8_t)regval);
 	else if (data_width == 2)
-		return cambus_writew(i2c_addr, reg, (uint16_t)regval);
+		return cambus_writew2(i2c_addr, reg, (uint16_t)regval);
 	else
-		return cambus_writel(i2c_addr, reg, (uint32_t)regval);
+		return cambus_writel2(i2c_addr, reg, (uint32_t)regval);
 }
 
 static status_t mt9m114_soft_reset(sensor_t *sensor)
@@ -127,60 +127,60 @@ static void mt9m114_reg_check(sensor_t *sensor, const mt9m114_reg_t regs[], uint
 		uint32_t readl = 0;
 
 		if (regs[i].size == 1)
-			status = cambus_readb(sensor->slv_addr, regs[i].reg, &readb);
+			status = cambus_readb2(sensor->slv_addr, regs[i].reg, &readb);
 		else if (regs[i].size == 2)
-			status = cambus_readw(sensor->slv_addr, regs[i].reg, &readw);
+			status = cambus_readw2(sensor->slv_addr, regs[i].reg, &readw);
 		else if (regs[i].size == 4)
-			status = cambus_readl(sensor->slv_addr, regs[i].reg, &readl);
+			status = cambus_readl2(sensor->slv_addr, regs[i].reg, &readl);
 		else {
 			printk("mt9m114_reg_check error1 regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value);
 			return;
 		}
 
 		if (kStatus_Success != status) {
 			printk("mt9m114_reg_check error2 regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value);
 			break;
 		} else if (regs[i].size == 1) {
 			if (readb != regs[i].value)
 				printk("mt9m114_reg_check error3 regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x, 0x%02x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value, readb);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value, readb);
 		} else if (regs[i].size == 2) {
 			if (readw != regs[i].value)
 				printk("mt9m114_reg_check error4 regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x, 0x%04x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value, readw);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value, readw);
 		} else if (regs[i].size == 4) {
 			if (readl != regs[i].value)
 				printk("mt9m114_reg_check error5 regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x, 0x%08x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value, readl);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value, (unsigned int)readl);
 		} else
 			printk("mt9m114_reg_check error6 regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value);
 	}
 
 }
 static status_t mt9m114_multi_write(sensor_t *sensor, const mt9m114_reg_t regs[], uint32_t num)
 {
 	status_t status = kStatus_Success;
-	uint32_t i;
+	int i;
 
 	for (i = 0; i < num; i++) {
 		if (regs[i].size == 1)
-			status = cambus_writeb(sensor->slv_addr, regs[i].reg, (uint8_t)regs[i].value);
+			status = cambus_writeb2(sensor->slv_addr, regs[i].reg, (uint8_t)regs[i].value);
 		else if (regs[i].size == 2)
-			status = cambus_writew(sensor->slv_addr, regs[i].reg, (uint16_t)regs[i].value);
+			status = cambus_writew2(sensor->slv_addr, regs[i].reg, (uint16_t)regs[i].value);
 		else if (regs[i].size == 4)
-			status = cambus_writel(sensor->slv_addr, regs[i].reg, (uint32_t)regs[i].value);
+			status = cambus_writel2(sensor->slv_addr, regs[i].reg, (uint32_t)regs[i].value);
 		else {
 			printk("mt9m114_multi_write size error regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value);
 			return kStatus_InvalidArgument;
 		}
 
 		if (kStatus_Success != status) {
 			printk("mt9m114_multi_write error regs[%d].reg:0x%04x, regs[%d].size:%d, regs[%d].value:0x%08x\r\n",
-				i, regs[i].reg, i, regs[i].size, i, regs[i].value);
+				i, regs[i].reg, i, regs[i].size, i, (unsigned int)regs[i].value);
 			break;
 		}
 	}
@@ -195,28 +195,34 @@ static status_t mt9m114_set_state(sensor_t *sensor, uint8_t nextState)
 	uint16_t value;
 
 	/* Set the desired next state. */
-	cambus_writeb(sensor->slv_addr, MT9M114_VAR_SYSMGR_NEXT_STATE, nextState);
+	printk("mt9m114_set_state start!!\r\n");
+	cambus_writeb2(sensor->slv_addr, MT9M114_VAR_SYSMGR_NEXT_STATE, nextState);
 
 	/* Check that the FW is ready to accept a new command. */
 	while (1) {
-		cambus_readw(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, &value);
+		k_sleep(100);
+		cambus_readw2(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, &value);
 		if (!(value & MT9M114_COMMAND_SET_STATE))
 			break;
+		//printk("error value:0x%04x\r\n", value);
 	}
+	printk("mt9m114_set_state 11111\r\n");
 
 	/* Issue the Set State command. */
-	cambus_writew(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, MT9M114_COMMAND_SET_STATE | MT9M114_COMMAND_OK);
+	cambus_writew2(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, MT9M114_COMMAND_SET_STATE | MT9M114_COMMAND_OK);
 
 	/* Wait for the FW to complete the command. */
 	while (1) {
 		k_sleep(100);
-		cambus_readw(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, &value);
+		cambus_readw2(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, &value);
 		if (!(value & MT9M114_COMMAND_SET_STATE))
 			break;
 	}
 
+	printk("mt9m114_set_state 222\r\n");
 	/* Check the 'OK' bit to see if the command was successful. */
-	cambus_readw(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, &value);
+	cambus_readw2(sensor->slv_addr, MT9M114_REG_COMMAND_REGISTER, &value);
+	printk("mt9m114_set_state 333 value:0x%04x\r\n", value);
 	if (!(value & MT9M114_COMMAND_OK))
 		return kStatus_Fail;
 
@@ -229,37 +235,45 @@ static int reset(sensor_t *sensor)
 	int ret;
 
 	/* SW reset. */
+	printk("mt9m114 reset start!!\r\n");
 	ret = mt9m114_soft_reset(sensor);
+	printk("mt9m114 reset mt9m114_soft_reset ret:%d\r\n", ret);
 	if (ret != kStatus_Success)
 		return ret;
 
 	ret = mt9m114_multi_write(sensor, mt9m114_init_cfg, ARRAY_SIZE(mt9m114_init_cfg));
+	printk("mt9m114 reset mt9m114_multi_write 111 ret:%d\r\n", ret);
 	if (ret != kStatus_Success)
 		return ret;
 	/* Pixel format. */
 	if (PIXFORMAT_RGB565 == sensor->pixformat)
 		outputFormat |= ((1U << 8U) | (1U << 1U));
 
-	ret = cambus_writew(sensor->slv_addr, MT9M114_VAR_CAM_OUTPUT_FORMAT, outputFormat);
+	ret = cambus_writew2(sensor->slv_addr, MT9M114_VAR_CAM_OUTPUT_FORMAT, outputFormat);
+	printk("mt9m114 reset cambus_writew 222 ret:%d\r\n", ret);
 	if (ret != kStatus_Success)
 		return ret;
 
 	/*kCAMERA_InterfaceGatedClock*/
-	ret = cambus_writew(sensor->slv_addr, MT9M114_VAR_CAM_PORT_OUTPUT_CONTROL, 0x8000);
+	ret = cambus_writew2(sensor->slv_addr, MT9M114_VAR_CAM_PORT_OUTPUT_CONTROL, 0x8000);
+	printk("mt9m114 reset cambus_writew 333 ret:%d\r\n", ret);
 	if (ret != kStatus_Success)
 		return ret;
 
 	/* Resolution 480 * 272*/
 	ret = mt9m114_multi_write(sensor, mt9m114_480_272, ARRAY_SIZE(mt9m114_480_272));
+	printk("mt9m114 reset mt9m114_multi_write 444 ret:%d\r\n", ret);
 	if (ret != kStatus_Success)
 		return ret;
 
 	/* Execute Change-Config command. */
 	ret = mt9m114_set_state(sensor, MT9M114_SYS_STATE_ENTER_CONFIG_CHANGE);
+	printk("mt9m114 reset mt9m114_set_state 555 ret:%d\r\n", ret);
 	if (ret != kStatus_Success)
 		return ret;
 
 	ret = mt9m114_set_state(sensor, MT9M114_SYS_STATE_START_STREAMING);
+	printk("mt9m114 reset mt9m114_set_state 666 ret:%d\r\n", ret);
 	return ret;
 }
 
@@ -293,8 +307,8 @@ static int set_pixformat(sensor_t *sensor, pixformat_t pixformat)
 
 static int set_framesize(sensor_t *sensor, framesize_t framesize)
 {
-	uint16_t width = g_resolution[framesize][0];
-	uint16_t height = g_resolution[framesize][1];
+	uint16_t width = resolution[framesize][0];
+	uint16_t height = resolution[framesize][1];
 
 	printk("set_framesize width:%d, height:%d\r\n", width, height);
 	return 0;
@@ -420,12 +434,6 @@ int mt9m114_init(sensor_t *sensor)
 	SENSOR_HW_FLAGS_SET(sensor, SENSOR_HW_FLAGS_FSYNC, 0);
 	SENSOR_HW_FLAGS_SET(sensor, SENSOR_HW_FLAGS_JPEGE, 0);
 	sensor->pixformat = PIXFORMAT_RGB565;
-
+	printk("mt9m114_init done\r\n");
 	return 0;
 }
-#else
-int mt9m114_init(sensor_t *sensor)
-{
-	return -1;
-}
-#endif //defined(OMV_ENABLE_MT9m114)
