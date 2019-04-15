@@ -20,6 +20,7 @@
 #include "systick.h"
 #include "framebuffer.h"
 #include "omv_boardconfig.h"
+#include "camera.h"
 
 sensor_t sensor;
 
@@ -72,6 +73,7 @@ const int resolution[][2] = {
 	{800,  600 },    /* SVGA      */
 	{1280, 1024},    /* SXGA      */
 	{1600, 1200},    /* UXGA      */
+	{480, 272}, /*480x272*/
 };
 
 int sensor_init(void)
@@ -86,25 +88,25 @@ int sensor_init(void)
 
 void sensor_init0(void)
 {
-	return;
+	int fb_enabled;
+
+	mutex_init(&JPEG_FB()->lock);
+	fb_enabled = JPEG_FB()->enabled;
+	memset(MAIN_FB(), 0, sizeof(*MAIN_FB()));
+	memset(JPEG_FB(), 0, sizeof(*JPEG_FB()));
+	JPEG_FB()->quality = JPEG_QUALITY_LOW;//((JPEG_QUALITY_HIGH - JPEG_QUALITY_LOW) / 2) + JPEG_QUALITY_LOW;
+	JPEG_FB()->enabled = fb_enabled;
 }
 
 int sensor_reset(void)
 {
 	int i;
 
-	printk("sensor_reset called\r\n");
 	sensor.chip_id = cambus_get_chip(sensor.slv_addr);
-	printk("sensor_reset sensor.chip_id:0x%02x\r\n", sensor.chip_id);
 	for (i = 0; i < sizeof(g_img_sensor_map) / sizeof(struct img_sensor_map); i++) {
-		printk("sensor_reset sensor.chip_id:0x%02x, map[%d].id:0x%02x\r\n", sensor.chip_id,
-			i, g_img_sensor_map[i].chip_id);
 		if (sensor.chip_id == g_img_sensor_map[i].chip_id) {
-			printk("sensor_init callback:%p, mt9m114_init:%p\r\n",
-				g_img_sensor_map[i].sensor_init, mt9m114_init);
 			g_img_sensor_map[i].sensor_init(&sensor);
-			camera_data_bus_init();
-			printk("sensor.reset callback:%p\r\n", sensor.reset);
+			sensor.snapshot = sensor_snapshot;
 			sensor.reset(&sensor);
 			return 0;
 		}
@@ -144,6 +146,8 @@ int sensor_set_pixformat(pixformat_t pixformat)
 
 int sensor_set_framesize(framesize_t framesize)
 {
+	assert(framesize == FRAMESIZE_480X272);
+	sensor.framesize = FRAMESIZE_480X272;
 	return 0;
 }
 
@@ -242,14 +246,16 @@ int sensor_set_vsync_output(GPIO_TypeDef *gpio, uint32_t pin)
 	return 0;
 }
 
-extern int camera_snapshot(void *pixel_data);
 int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_cb)
 {
-	int ret;
+	struct device *camera_dev = device_get_binding(CONFIG_CAMERA_DEV_NAME);
+	void *pixels;
 
-	printk("sensor_snapshot image:%p, pixels:%p\r\n", image, image->pixels);
-	ret = camera_snapshot(image->pixels);
-	return ret;
+	assert(camera_dev);
+	camera_capture(camera_dev, jpeg_encode);
+	pixels = camera_get_framebuffer(camera_dev);
+	image->pixels = pixels;
+	return 0;
 }
 
 int sensor_ioctl(int request, ... /* arg */)

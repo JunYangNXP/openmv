@@ -760,6 +760,148 @@ void jpeg_get_mcu(image_t *img, int mcu_w, int mcu_h, int x_offs, int y_offs, in
     }
 }
 
+static int g_yuv_tb_swapped;
+
+int8_t g_yuv_swap_table[196608];
+
+static void yuv_table_swap(void)
+{
+	uint16_t input_pixel;
+
+	if (g_yuv_tb_swapped)
+		return;
+
+	for (input_pixel = 0; input_pixel < 65535; input_pixel++) {
+		uint16_t pixel_swap = ((input_pixel & 0xff) << 8) | ((input_pixel & 0xff00) >> 8);
+
+		g_yuv_swap_table[pixel_swap * 3] = yuv_table[input_pixel * 3];
+		g_yuv_swap_table[pixel_swap * 3 + 1] = yuv_table[input_pixel * 3 + 1];
+		g_yuv_swap_table[pixel_swap * 3 + 2] = yuv_table[input_pixel * 3 + 2];
+	}
+	g_yuv_tb_swapped = 1;
+}
+
+bool jpeg_compress_rgb565_yuv_swap(image_t *src,
+	image_t *dst, int quality, bool realloc)
+{
+	static const uint16_t fillBits[] = {0x7F, 7};
+	int DCY = 0, DCU = 0, DCV = 0;
+	int y, x, i, r, idx;
+	int8_t YDU[256], UDU[64], VDU[64];
+	uint16_t *pixels = (uint16_t *)src->pixels;
+	int8_t *yuv_tb;
+
+	jpeg_buf_t  jpeg_buf = {
+		.idx =0,
+		.buf = dst->pixels,
+		.length = dst->bpp,
+		.bitc = 0,
+		.bitb = 0,
+		.realloc = realloc,
+		.overflow = false,
+	};
+
+	jpeg_subsample_t jpeg_subsample = JPEG_SUBSAMPLE_2x2;
+
+	// Initialize quantization tables
+	jpeg_init(quality);
+
+	jpeg_write_headers(&jpeg_buf, src->w, src->h, src->bpp, jpeg_subsample);
+
+	yuv_table_swap();
+
+	yuv_tb = g_yuv_swap_table;
+
+	// Encode 8x8 macroblocks
+
+	for (y = 0; y < src->h; y += 16) {
+		for (x = 0; x < src->w; x += 16) {
+			for (i = 0, r = y, idx = 0; r < y + 8; i++, r++, idx += 8) {
+				int ofs = r * src->w + x;
+
+				YDU[idx + 0]       = yuv_tb[pixels[ofs + 0] * 3 + 0];
+				YDU[idx + 1]       = yuv_tb[pixels[ofs + 1] * 3 + 0];
+				YDU[idx + 2]       = yuv_tb[pixels[ofs + 2] * 3 + 0];
+				YDU[idx + 3]       = yuv_tb[pixels[ofs + 3] * 3 + 0];
+				YDU[idx + 4]       = yuv_tb[pixels[ofs + 4] * 3 + 0];
+				YDU[idx + 5]       = yuv_tb[pixels[ofs + 5] * 3 + 0];
+				YDU[idx + 6]       = yuv_tb[pixels[ofs + 6] * 3 + 0];
+				YDU[idx + 7]       = yuv_tb[pixels[ofs + 7] * 3 + 0];
+
+				YDU[idx + 0 + 64]  = yuv_tb[pixels[ofs + 0 + 8] * 3 + 0];
+				YDU[idx + 1 + 64]  = yuv_tb[pixels[ofs + 1 + 8] * 3 + 0];
+				YDU[idx + 2 + 64]  = yuv_tb[pixels[ofs + 2 + 8] * 3 + 0];
+				YDU[idx + 3 + 64]  = yuv_tb[pixels[ofs + 3 + 8] * 3 + 0];
+				YDU[idx + 4 + 64]  = yuv_tb[pixels[ofs + 4 + 8] * 3 + 0];
+				YDU[idx + 5 + 64]  = yuv_tb[pixels[ofs + 5 + 8] * 3 + 0];
+				YDU[idx + 6 + 64]  = yuv_tb[pixels[ofs + 6 + 8] * 3 + 0];
+				YDU[idx + 7 + 64]  = yuv_tb[pixels[ofs + 7 + 8] * 3 + 0];
+
+				ofs = (r + 8) * src->w + x;
+				YDU[idx + 0 + 128] = yuv_tb[pixels[ofs + 0] * 3 + 0];
+				YDU[idx + 1 + 128] = yuv_tb[pixels[ofs + 1] * 3 + 0];
+				YDU[idx + 2 + 128] = yuv_tb[pixels[ofs + 2] * 3 + 0];
+				YDU[idx + 3 + 128] = yuv_tb[pixels[ofs + 3] * 3 + 0];
+				YDU[idx + 4 + 128] = yuv_tb[pixels[ofs + 4] * 3 + 0];
+				YDU[idx + 5 + 128] = yuv_tb[pixels[ofs + 5] * 3 + 0];
+				YDU[idx + 6 + 128] = yuv_tb[pixels[ofs + 6] * 3 + 0];
+				YDU[idx + 7 + 128] = yuv_tb[pixels[ofs + 7] * 3 + 0];
+
+				YDU[idx + 0 + 192] = yuv_tb[pixels[ofs + 0 + 8] * 3 + 0];
+				YDU[idx + 1 + 192] = yuv_tb[pixels[ofs + 1 + 8] * 3 + 0];
+				YDU[idx + 2 + 192] = yuv_tb[pixels[ofs + 2 + 8] * 3 + 0];
+				YDU[idx + 3 + 192] = yuv_tb[pixels[ofs + 3 + 8] * 3 + 0];
+				YDU[idx + 4 + 192] = yuv_tb[pixels[ofs + 4 + 8] * 3 + 0];
+				YDU[idx + 5 + 192] = yuv_tb[pixels[ofs + 5 + 8] * 3 + 0];
+				YDU[idx + 6 + 192] = yuv_tb[pixels[ofs + 6 + 8] * 3 + 0];
+				YDU[idx + 7 + 192] = yuv_tb[pixels[ofs + 7 + 8] * 3 + 0];
+
+				ofs = (y + i * 2) * src->w + x;
+				// Just toss the odd U/V pixels (could average for better quality)
+				UDU[idx + 0] = yuv_tb[pixels[ofs + 0] * 3 + 1];
+				UDU[idx + 1] = yuv_tb[pixels[ofs + 2] * 3 + 1];
+				UDU[idx + 2] = yuv_tb[pixels[ofs + 4] * 3 + 1];
+				UDU[idx + 3] = yuv_tb[pixels[ofs + 6] * 3 + 1];
+				UDU[idx + 4] = yuv_tb[pixels[ofs + 8] * 3 + 1];
+				UDU[idx + 5] = yuv_tb[pixels[ofs +10] * 3 + 1];
+				UDU[idx + 6] = yuv_tb[pixels[ofs +12] * 3 + 1];
+				UDU[idx + 7] = yuv_tb[pixels[ofs +14] * 3 + 1];
+
+				VDU[idx + 0] = yuv_tb[pixels[ofs + 0] * 3 + 2];
+				VDU[idx + 1] = yuv_tb[pixels[ofs + 2] * 3 + 2];
+				VDU[idx + 2] = yuv_tb[pixels[ofs + 4] * 3 + 2];
+				VDU[idx + 3] = yuv_tb[pixels[ofs + 6] * 3 + 2];
+				VDU[idx + 4] = yuv_tb[pixels[ofs + 8] * 3 + 2];
+				VDU[idx + 5] = yuv_tb[pixels[ofs +10] * 3 + 2];
+				VDU[idx + 6] = yuv_tb[pixels[ofs +12] * 3 + 2];
+				VDU[idx + 7] = yuv_tb[pixels[ofs +14] * 3 + 2];
+			}
+
+			DCY = jpeg_processDU(&jpeg_buf, YDU,     fdtbl_Y, DCY, YDC_HT, YAC_HT);
+			DCY = jpeg_processDU(&jpeg_buf, YDU + 64,  fdtbl_Y, DCY, YDC_HT, YAC_HT);
+			DCY = jpeg_processDU(&jpeg_buf, YDU + 128, fdtbl_Y, DCY, YDC_HT, YAC_HT);
+			DCY = jpeg_processDU(&jpeg_buf, YDU + 192, fdtbl_Y, DCY, YDC_HT, YAC_HT);
+			DCU = jpeg_processDU(&jpeg_buf, UDU, fdtbl_UV, DCU, UVDC_HT, UVAC_HT);
+			DCV = jpeg_processDU(&jpeg_buf, VDU, fdtbl_UV, DCV, UVDC_HT, UVAC_HT);
+		}
+		if (jpeg_buf.overflow)
+			goto jpeg_overflow;
+	}
+
+	// Do the bit alignment of the EOI marker
+	jpeg_writeBits(&jpeg_buf, fillBits);
+
+	// EOI
+	jpeg_put_char(&jpeg_buf, 0xFF);
+	jpeg_put_char(&jpeg_buf, 0xD9);
+
+	dst->bpp = jpeg_buf.idx;
+	dst->data = jpeg_buf.buf;
+
+jpeg_overflow:
+	return jpeg_buf.overflow;
+}
+
 bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc)
 {
     int DCY=0, DCU=0, DCV=0;

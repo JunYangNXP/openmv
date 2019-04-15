@@ -1158,6 +1158,9 @@ void bmp_read_pixels(FIL *fp, image_t *img, int line_start, int line_end, bmp_re
 void bmp_read(image_t *img, const char *path);
 void bmp_write_subimg(image_t *img, const char *path, rectangle_t *r);
 bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc);
+bool jpeg_compress_rgb565_yuv_swap(image_t *src,
+	image_t *dst, int quality, bool realloc);
+
 void jpeg_read_geometry(FIL *fp, image_t *img, const char *path);
 void jpeg_read_pixels(FIL *fp, image_t *img);
 void jpeg_read(image_t *img, const char *path);
