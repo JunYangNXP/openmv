@@ -139,6 +139,23 @@ FRESULT exec_boot_script(const char *path, bool selftest, bool interruptible)
 #include "diskio.h"
 #include "genhdr/mpversion.h"
 
+static void omv_mount_vfs(void)
+{
+	mp_vfs_mount_t *vfs = m_new_obj_maybe(mp_vfs_mount_t);
+
+	if (vfs == NULL) {
+		__fatal_error("Failed to alloc memory for vfs mount\n");
+		return;
+	}
+
+	vfs->str = "/";
+	vfs->len = 1;
+	vfs->obj = MP_OBJ_FROM_PTR(g_vfs_fat);
+	vfs->next = NULL;
+	MP_STATE_VM(vfs_mount_table) = vfs;
+	MP_STATE_PORT(vfs_cur) = vfs;
+}
+
 extern int pyexec_str(vstr_t *str);
 int omv_main(void)
 {
@@ -170,6 +187,7 @@ int omv_main(void)
 		}
 
 		printk("OMV SD mounted\r\n");
+		omv_mount_vfs();
 	}
 
 	exec_boot_script("/boot.py", false, false);
@@ -214,6 +232,8 @@ pyexec_from_host:
 			mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
 		}
 	} while (0);
+
+	usbdbg_init();
 	goto pyexec_from_host;
 	return -1;
 }
