@@ -253,7 +253,7 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
 
 	assert(camera_dev);
 	camera_capture(camera_dev, jpeg_encode);
-	pixels = camera_get_framebuffer(camera_dev);
+	pixels = camera_get_framebuffer(camera_dev, &image->w, &image->h, &image->bpp);
 	image->pixels = pixels;
 	return 0;
 }
