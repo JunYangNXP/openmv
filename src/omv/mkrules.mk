@@ -15,12 +15,6 @@
 # can be located. By following this scheme, it allows a single build rule
 # to be used to compile all .c files.
 
-#OMV_OBJ_DIRS = $(sort $(dir $(OMV_OBJS)))
-
-#all: | $(OMV_OBJ_DIRS) $(OMV_OBJS)
-#$(OMV_OBJ_DIRS):
-#	mkdir -p $@
-
 vpath %.c . $(OPENMV_BASE)/src/omv/
 vpath %.c . $(OPENMV_BASE)/src/omv/img/
 vpath %.c . $(OPENMV_BASE)/src/omv/py/
@@ -38,8 +32,13 @@ $(OMV_BUILD)/%.o : %.c
 	$(ECHO) "CC $< to $@"
 	$(Q)$(CC) $(CFLAGS) -c -MD -o $@ $<
 
-#$(warning CFLAGS is $(CFLAGS))
-#$(OMV_BUILD)/%.o : %.s
-#	$(ECHO) "AS $<"
-#	$(AS) $(AFLAGS) $< -o $@
 
+OMV_OBJ_DIRS = $(sort $(dir $(OMV_OBJS)))
+$(OMV_OBJS): | $(OMV_OBJ_DIRS)
+$(OMV_OBJ_DIRS):
+	$(MKDIR) -p $@
+
+LIBOPENMV = libopenmv.a
+
+$(LIBOPENMV): $(OMV_OBJS) $(LIBMICROPYTHON)
+	$(AR) rcs $(BUILD)/$(LIBOPENMV) $^
