@@ -8,7 +8,7 @@
  */
 #ifndef __MT9M114_H__
 #define __MT9M114_H__
-#include "sensor.h"
+#include "./sensor.h"
 
 #ifndef MT9M114_REG_CHIP_ID
 #define MT9M114_REG_CHIP_ID 0x0000

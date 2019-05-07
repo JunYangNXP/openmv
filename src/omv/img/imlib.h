@@ -14,6 +14,7 @@
 #include <float.h>
 #include <math.h>
 #include <arm_math.h>
+#include "mp.h"
 #if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include <ff.h>
 #else
@@ -26,6 +27,7 @@
 #include "fmath.h"
 #include "collections.h"
 #include "imlib_config.h"
+#include "assert.h"
 
 #define IM_LOG2_2(x)    (((x) &                0x2ULL) ? ( 2                        ) :             1) // NO ({ ... }) !
 #define IM_LOG2_4(x)    (((x) &                0xCULL) ? ( 2 +  IM_LOG2_2((x) >>  2)) :  IM_LOG2_2(x)) // NO ({ ... }) !
