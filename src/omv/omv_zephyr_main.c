@@ -25,7 +25,11 @@
 #include "sdcard.h"
 
 #include "extmod/vfs.h"
+#ifndef CONFIG_FAT_FILESYSTEM_ELM
 #include "extmod/vfs_fat.h"
+#else
+#include "fs.h"
+#endif
 #include "lib/utils/pyexec.h"
 
 #include "irq.h"
@@ -70,7 +74,48 @@ static void flash_error(int n)
 	return;
 }
 
+#ifndef CONFIG_FAT_FILESYSTEM_ELM
 fs_user_mount_t *g_vfs_fat;
+#else
+FATFS g_fat_fs;
+char g_mntp[32];
+static struct fs_mount_t g_fatfs_mnt = {
+	.type = FS_FATFS,
+	.fs_data = &g_fat_fs,
+};
+
+static void show_dir(char *dir_name)
+{
+	struct fs_dir_t dir;
+	int err = fs_opendir(&dir, dir_name);
+
+	if (err) {
+		printk("show_root_dir fs_opendir error!\r\n");
+		return;
+	}
+
+	printk("%s:\r\n", dir_name);
+
+	while (1) {
+		struct fs_dirent entry;
+
+		err = fs_readdir(&dir, &entry);
+		if (err) {
+			printk("show_root_dir Unable to read directory!\r\n");
+			break;
+		}
+
+		/* Check for end of directory listing */
+		if (entry.name[0] == '\0') {
+			break;
+		}
+
+		printk("%s%s\r\n", entry.name, (entry.type == FS_DIR_ENTRY_DIR) ? "/" : "");
+	}
+
+	fs_closedir(&dir);
+}
+#endif
 
 FRESULT exec_boot_script(const char *path, bool selftest, bool interruptible)
 {
@@ -150,7 +195,11 @@ static void omv_mount_vfs(void)
 
 	vfs->str = "/";
 	vfs->len = 1;
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	vfs->obj = MP_OBJ_FROM_PTR(&g_fatfs_mnt);
+#else
 	vfs->obj = MP_OBJ_FROM_PTR(g_vfs_fat);
+#endif
 	vfs->next = NULL;
 	MP_STATE_VM(vfs_mount_table) = vfs;
 	MP_STATE_PORT(vfs_cur) = vfs;
@@ -172,14 +221,16 @@ int omv_main(void)
 	if (sdcard_is_present()) {
 		FRESULT res;
 
+#ifndef CONFIG_FAT_FILESYSTEM_ELM
 		g_vfs_fat = m_new_obj_maybe(fs_user_mount_t);
 		assert(g_vfs_fat);
 		g_vfs_fat->flags = FSUSER_FREE_OBJ;
 		sdcard_init_vfs(g_vfs_fat, 1);
-#ifdef CONFIG_FAT_FILESYSTEM_ELM
-		res = f_mount(&g_vfs_fat->fatfs, "/", 1);
-#else
 		res = f_mount(&g_vfs_fat->fatfs);
+#else
+		sprintf(g_mntp, "/%s:", CONFIG_DISK_SOC_SDHC_VOLUME_NAME);
+		g_fatfs_mnt.mnt_point = g_mntp;
+		res = fs_mount(&g_fatfs_mnt);
 #endif
 		if (res != FR_OK) {
 			printk("OMV SD mount failed\r\n");
@@ -187,6 +238,9 @@ int omv_main(void)
 		}
 
 		printk("OMV SD mounted\r\n");
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+		show_dir(g_mntp);
+#endif
 		omv_mount_vfs();
 	}
 

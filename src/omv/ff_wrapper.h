@@ -11,6 +11,7 @@
 #include <stdint.h>
 #if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include <ff.h>
+#define FF_DIR DIR
 #else
 #include "lib/oofatfs/ff.h"
 #endif

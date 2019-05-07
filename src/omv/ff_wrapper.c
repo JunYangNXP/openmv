@@ -12,6 +12,9 @@
 #include "ff_wrapper.h"
 #define FF_MIN(x,y) (((x)<(y))?(x):(y))
 
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+#include "fs.h"
+#endif
 const char *ffs_strerror(FRESULT res)
 {
 	static const char *ffs_errors[]={
@@ -131,12 +134,23 @@ void file_sync(FIL *fp)
 // OpenMV code using vanilla FatFS. Note: Extracted from cc3200 ftp.c
 
 STATIC FATFS *lookup_path(const TCHAR **path) {
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	struct fs_mount_t *mnt_pntp;
+	int rc = fs_get_mnt_point(&mnt_pntp, *path, NULL);
+
+	if (rc < 0) {
+		printk("%s:mount point not found!! *path:%s\r\n", __func__, *path);
+		return 0;
+	}
+	return (FATFS *)mnt_pntp->fs_data;
+#else
     mp_vfs_mount_t *fs = mp_vfs_lookup_path(*path, path);
     if (fs == MP_VFS_NONE || fs == MP_VFS_ROOT) {
         return NULL;
     }
     // here we assume that the mounted device is FATFS
     return &((fs_user_mount_t*)MP_OBJ_TO_PTR(fs->obj))->fatfs;
+#endif
 }
 
 FRESULT f_open_helper(FIL *fp, const TCHAR *path, BYTE mode) {
@@ -144,7 +158,12 @@ FRESULT f_open_helper(FIL *fp, const TCHAR *path, BYTE mode) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	/*Skip '/'*/
+	return f_open(fp, &path[1], mode);
+#else
     return f_open(fs, fp, path, mode);
+#endif
 }
 
 FRESULT f_opendir_helper(FF_DIR *dp, const TCHAR *path) {
@@ -152,7 +171,11 @@ FRESULT f_opendir_helper(FF_DIR *dp, const TCHAR *path) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_opendir(dp, &path[1]);
+#else
     return f_opendir(fs, dp, path);
+#endif
 }
 
 FRESULT f_stat_helper(const TCHAR *path, FILINFO *fno) {
@@ -160,7 +183,11 @@ FRESULT f_stat_helper(const TCHAR *path, FILINFO *fno) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_stat(&path[1], fno);
+#else
     return f_stat(fs, path, fno);
+#endif
 }
 
 FRESULT f_mkdir_helper(const TCHAR *path) {
@@ -168,7 +195,11 @@ FRESULT f_mkdir_helper(const TCHAR *path) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_mkdir(&path[1]);
+#else
     return f_mkdir(fs, path);
+#endif
 }
 
 FRESULT f_unlink_helper(const TCHAR *path) {
@@ -176,7 +207,11 @@ FRESULT f_unlink_helper(const TCHAR *path) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_unlink(&path[1]);
+#else
     return f_unlink(fs, path);
+#endif
 }
 
 FRESULT f_rename_helper(const TCHAR *path_old, const TCHAR *path_new) {
@@ -191,7 +226,11 @@ FRESULT f_rename_helper(const TCHAR *path_old, const TCHAR *path_new) {
     if (fs_old != fs_new) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_rename(&path_old[1], &path_new[1]);
+#else
     return f_rename(fs_new, path_old, path_new);
+#endif
 }
 // When a sector boundary is encountered while writing a file and there are
 // more than 512 bytes left to write FatFs will detect that it can bypass
