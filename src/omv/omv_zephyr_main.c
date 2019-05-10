@@ -84,6 +84,8 @@ static struct fs_mount_t g_fatfs_mnt = {
 	.fs_data = &g_fat_fs,
 };
 
+#define NAME_BUF_LEN 40
+static char g_name_buf[MAX_FILE_NAME + 10];
 static void show_dir(char *dir_name)
 {
 	struct fs_dir_t dir;
@@ -94,7 +96,7 @@ static void show_dir(char *dir_name)
 		return;
 	}
 
-	printk("%s:\r\n", dir_name);
+	printk("%s\r\n", dir_name);
 
 	while (1) {
 		struct fs_dirent entry;
@@ -110,7 +112,30 @@ static void show_dir(char *dir_name)
 			break;
 		}
 
-		printk("%s%s\r\n", entry.name, (entry.type == FS_DIR_ENTRY_DIR) ? "/" : "");
+		memset(g_name_buf, ' ', NAME_BUF_LEN);
+		g_name_buf[NAME_BUF_LEN - 1] = 0;
+
+		if (strlen(entry.name) < (NAME_BUF_LEN - 1)) {
+			if (entry.type == FS_DIR_ENTRY_DIR) {
+				sprintf(g_name_buf, "%s/", entry.name);
+				if (strlen(entry.name) == (NAME_BUF_LEN - 2))
+					g_name_buf[strlen(entry.name) + 1] = 0;
+				else
+					g_name_buf[strlen(entry.name) + 1] = ' ';
+			} else {
+				strcpy(g_name_buf, entry.name);
+				g_name_buf[strlen(entry.name)] = ' ';
+			}
+		} else {
+			memcpy(g_name_buf, entry.name, NAME_BUF_LEN);
+			g_name_buf[NAME_BUF_LEN - 1] = 0;
+		}
+
+		if (entry.type == FS_DIR_ENTRY_FILE) {
+			printk("%s  %10d bytes\r\n", g_name_buf, (int)entry.size);
+		} else {
+			printk("%s\r\n", g_name_buf);
+		}
 	}
 
 	fs_closedir(&dir);
@@ -206,6 +231,11 @@ static void omv_mount_vfs(void)
 }
 
 extern int pyexec_str(vstr_t *str);
+#ifdef TFLITE
+extern void tf_lite_label_img(const char *model_name,
+	const char *img_name, const char *label_name);
+#endif
+
 int omv_main(void)
 {
 	int mp_info_log = 0;
@@ -242,6 +272,11 @@ int omv_main(void)
 		show_dir(g_mntp);
 #endif
 		omv_mount_vfs();
+#ifdef TFLITE
+		tf_lite_label_img("/SOC_SDHC:/mobilenet_v1_0.25_128_quant.tflite",
+			"/SOC_SDHC:/stopwatch.bmp",
+			"/SOC_SDHC:/labels.txt");
+#endif
 	}
 
 	exec_boot_script("/boot.py", false, false);
