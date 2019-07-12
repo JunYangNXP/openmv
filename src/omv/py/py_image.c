@@ -11,7 +11,7 @@
 #include <mp.h>
 #include "imlib.h"
 #include "array.h"
-#include "sensor.h"
+#include "../sensor.h"
 #include "ff_wrapper.h"
 #include "xalloc.h"
 #include "fb_alloc.h"
@@ -7175,6 +7175,7 @@ mp_obj_t py_image_load_image(uint n_args, const mp_obj_t *args, mp_map_t *kw_arg
         MAIN_FB()->w = image.w;
         MAIN_FB()->h = image.h;
         MAIN_FB()->bpp = image.bpp;
+		fb_update_jpeg_buffer();
     }
 
     if (arg_other) {

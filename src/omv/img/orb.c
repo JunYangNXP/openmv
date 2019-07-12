@@ -12,7 +12,11 @@
 #include <stdbool.h>
 #include "fmath.h"
 #include "arm_math.h"
+#if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include "ff.h"
+#else
+#include "lib/oofatfs/ff.h"
+#endif
 #include "imlib.h"
 #include "xalloc.h"
 #include "fb_alloc.h"

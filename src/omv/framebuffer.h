@@ -47,4 +47,6 @@ uint32_t fb_buffer_size();
 
 // Transfers the frame buffer to the jpeg frame buffer if not locked.
 void fb_update_jpeg_buffer();
+void fb_update_rgb565_yuv_swap_jpeg_buffer(void);
+void jpeg_encode(void *fb, int w, int h, int bpp);
 #endif /* __FRAMEBUFFER_H__ */

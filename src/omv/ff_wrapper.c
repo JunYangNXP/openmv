@@ -12,6 +12,40 @@
 #include "ff_wrapper.h"
 #define FF_MIN(x,y) (((x)<(y))?(x):(y))
 
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+#include "fs.h"
+#endif
+const char *ffs_strerror(FRESULT res)
+{
+	static const char *ffs_errors[]={
+		"Succeeded",
+		"A hard error occurred in the low level disk I/O layer",
+		"Assertion failed",
+		"The physical drive cannot work",
+		"Could not find the file",
+		"Could not find the path",
+		"The path name format is invalid",
+		"Access denied due to prohibited access or directory full",
+		"Access denied due to prohibited access",
+		"The file/directory object is invalid",
+		"The physical drive is write protected",
+		"The logical drive number is invalid",
+		"The volume has no work area",
+		"There is no valid FAT volume",
+		"The f_mkfs() aborted due to any parameter error",
+		"Could not get a grant to access the volume within defined period",
+		"The operation is rejected according to the file sharing policy",
+		"LFN working buffer could not be allocated",
+		"Number of open files > _FS_SHARE",
+		"Given parameter is invalid",
+	};
+
+	if (res > sizeof(ffs_errors) / sizeof(ffs_errors[0]))
+		return "unknown error";
+	else
+		return ffs_errors[res];
+}
+
 NORETURN static void ff_fail(FIL *fp, FRESULT res)
 {
     if (fp) f_close(fp);
@@ -100,12 +134,23 @@ void file_sync(FIL *fp)
 // OpenMV code using vanilla FatFS. Note: Extracted from cc3200 ftp.c
 
 STATIC FATFS *lookup_path(const TCHAR **path) {
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	struct fs_mount_t *mnt_pntp;
+	int rc = fs_get_mnt_point(&mnt_pntp, *path, NULL);
+
+	if (rc < 0) {
+		printk("%s:mount point not found!! *path:%s\r\n", __func__, *path);
+		return 0;
+	}
+	return (FATFS *)mnt_pntp->fs_data;
+#else
     mp_vfs_mount_t *fs = mp_vfs_lookup_path(*path, path);
     if (fs == MP_VFS_NONE || fs == MP_VFS_ROOT) {
         return NULL;
     }
     // here we assume that the mounted device is FATFS
     return &((fs_user_mount_t*)MP_OBJ_TO_PTR(fs->obj))->fatfs;
+#endif
 }
 
 FRESULT f_open_helper(FIL *fp, const TCHAR *path, BYTE mode) {
@@ -113,7 +158,12 @@ FRESULT f_open_helper(FIL *fp, const TCHAR *path, BYTE mode) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	/*Skip '/'*/
+	return f_open(fp, &path[1], mode);
+#else
     return f_open(fs, fp, path, mode);
+#endif
 }
 
 FRESULT f_opendir_helper(FF_DIR *dp, const TCHAR *path) {
@@ -121,7 +171,11 @@ FRESULT f_opendir_helper(FF_DIR *dp, const TCHAR *path) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_opendir(dp, &path[1]);
+#else
     return f_opendir(fs, dp, path);
+#endif
 }
 
 FRESULT f_stat_helper(const TCHAR *path, FILINFO *fno) {
@@ -129,7 +183,11 @@ FRESULT f_stat_helper(const TCHAR *path, FILINFO *fno) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_stat(&path[1], fno);
+#else
     return f_stat(fs, path, fno);
+#endif
 }
 
 FRESULT f_mkdir_helper(const TCHAR *path) {
@@ -137,7 +195,11 @@ FRESULT f_mkdir_helper(const TCHAR *path) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_mkdir(&path[1]);
+#else
     return f_mkdir(fs, path);
+#endif
 }
 
 FRESULT f_unlink_helper(const TCHAR *path) {
@@ -145,7 +207,11 @@ FRESULT f_unlink_helper(const TCHAR *path) {
     if (fs == NULL) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_unlink(&path[1]);
+#else
     return f_unlink(fs, path);
+#endif
 }
 
 FRESULT f_rename_helper(const TCHAR *path_old, const TCHAR *path_new) {
@@ -160,7 +226,11 @@ FRESULT f_rename_helper(const TCHAR *path_old, const TCHAR *path_new) {
     if (fs_old != fs_new) {
         return FR_NO_PATH;
     }
+#ifdef CONFIG_FAT_FILESYSTEM_ELM
+	return f_rename(&path_old[1], &path_new[1]);
+#else
     return f_rename(fs_new, path_old, path_new);
+#endif
 }
 // When a sector boundary is encountered while writing a file and there are
 // more than 512 bytes left to write FatFs will detect that it can bypass
@@ -237,7 +307,7 @@ uint32_t file_size_w_buf(FIL *fp)
 void file_buffer_on(FIL *fp)
 {
     file_buffer_offset = f_tell(fp) % 4;
-    file_buffer_pointer = fb_alloc_all(&file_buffer_size) + file_buffer_offset;
+    file_buffer_pointer = (uint8_t *)fb_alloc_all(&file_buffer_size) + file_buffer_offset;
     if (!file_buffer_size) {
         nlr_raise(mp_obj_new_exception_msg(&mp_type_MemoryError, "No memory!"));
     }
@@ -370,7 +440,7 @@ void read_data(FIL *fp, void *data, UINT size)
             uint32_t can_do = FF_MIN(size, file_buffer_space_left);
             memcpy(data, file_buffer_pointer+file_buffer_index, can_do);
             file_buffer_index += can_do;
-            data += can_do;
+            data = (uint8_t *)data + can_do;
             size -= can_do;
         }
     } else {
@@ -446,7 +516,7 @@ void write_data(FIL *fp, const void *data, UINT size)
             uint32_t can_do = FF_MIN(size, file_buffer_space_left);
             memcpy(file_buffer_pointer+file_buffer_index, data, can_do);
             file_buffer_index += can_do;
-            data += can_do;
+            data = (uint8_t *)data + can_do;
             size -= can_do;
             file_flush(fp);
         }

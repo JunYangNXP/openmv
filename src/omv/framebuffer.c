@@ -91,3 +91,68 @@ void fb_update_jpeg_buffer()
         }
     }
 }
+
+void jpeg_encode(void *fb, int w, int h, int bpp)
+{
+	if (mutex_try_lock(&JPEG_FB()->lock, MUTEX_TID_OMV)) {
+		bool overflow;
+		image_t src = {
+			.w = w,
+			.h = h,
+			.bpp = bpp,
+			.pixels = fb
+		};
+		image_t dst = {
+			.w = w,
+			.h = h,
+			.bpp = (OMV_JPEG_BUF_SIZE - 64),
+			.pixels = JPEG_FB()->pixels
+		};
+
+		overflow = jpeg_compress_rgb565_yuv_swap(&src, &dst, JPEG_FB()->quality, false);
+
+		if (overflow == true) {
+			JPEG_FB()->w = 0;
+			JPEG_FB()->h = 0;
+			JPEG_FB()->size = 0;
+		} else {
+			JPEG_FB()->w = dst.w;
+			JPEG_FB()->h = dst.h;
+			JPEG_FB()->size = dst.bpp;
+		}
+		mutex_unlock(&JPEG_FB()->lock, MUTEX_TID_OMV);
+	}
+}
+
+void fb_update_rgb565_yuv_swap_jpeg_buffer(void)
+{
+	assert(MAIN_FB()->bpp == 2 && JPEG_FB()->enabled);
+	if (mutex_try_lock(&JPEG_FB()->lock, MUTEX_TID_OMV)) {
+		bool overflow;
+		image_t src = {
+			.w=MAIN_FB()->w,
+			.h=MAIN_FB()->h,
+			.bpp=MAIN_FB()->bpp,
+			.pixels=MAIN_FB()->pixels
+		};
+		image_t dst = {
+			.w=MAIN_FB()->w,
+			.h=MAIN_FB()->h,
+			.bpp=(OMV_JPEG_BUF_SIZE-64),
+			.pixels=JPEG_FB()->pixels
+		};
+
+		overflow = jpeg_compress_rgb565_yuv_swap(&src, &dst, JPEG_FB()->quality, false);
+
+		if (overflow == true) {
+			JPEG_FB()->w = 0;
+			JPEG_FB()->h = 0;
+			JPEG_FB()->size = 0;
+		} else {
+			JPEG_FB()->w = dst.w;
+			JPEG_FB()->h = dst.h;
+			JPEG_FB()->size = dst.bpp;
+		}
+		mutex_unlock(&JPEG_FB()->lock, MUTEX_TID_OMV);
+        }
+}

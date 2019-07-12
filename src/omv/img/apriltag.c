@@ -48,7 +48,9 @@ either expressed or implied, of the Regents of The University of Michigan.
 #define malloc(size) ({ void *_r = umm_malloc(size); if(!_r) umm_alloc_fail(); _r; })
 #define realloc(ptr, size) ({ void *_r = umm_realloc((ptr), (size)); if(!_r) umm_alloc_fail(); _r; })
 #define calloc(num, item_size) ({ void *_r = umm_calloc((num), (item_size)); if(!_r) umm_alloc_fail(); _r; })
+#ifndef assert
 #define assert(expression)
+#endif
 #define double float
 #undef DBL_MIN
 #define DBL_MIN FLT_MIN

@@ -1164,3 +1164,21 @@ Q(draw_ir)
 // duplicate Q(scale)
 Q(pixformat)
 // duplciate Q(copy_to_fb)
+
+Q(min)
+Q(max)
+
+Q(nn)
+
+Q(vid)
+Q(pid)
+
+Q(VCP)
+Q(MSC)
+Q(VCP+MSC)
+
+Q(data)
+Q(readlines)
+
+Q(present)
+Q(power)

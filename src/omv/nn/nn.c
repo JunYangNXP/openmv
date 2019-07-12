@@ -10,7 +10,7 @@
 #include "common.h"
 #include "ff_wrapper.h"
 #include "arm_math.h"
-#include "arm_nnfunctions.h"
+#include "../../cmsis/include/arm_nnfunctions.h"
 #include "omv_boardconfig.h"
 #ifdef IMLIB_ENABLE_CNN
 

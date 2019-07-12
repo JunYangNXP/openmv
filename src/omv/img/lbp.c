@@ -15,7 +15,11 @@
 
 #include "imlib.h"
 #include "xalloc.h"
+#if defined(CONFIG_FAT_FILESYSTEM_ELM) || !defined(ZEPHYR_BSP)
 #include "ff.h"
+#else
+#include "lib/oofatfs/ff.h"
+#endif
 
 #define LBP_HIST_SIZE   (59)    //58 uniform hist + 1
 #define LBP_NUM_REGIONS (7)     //7x7 regions
